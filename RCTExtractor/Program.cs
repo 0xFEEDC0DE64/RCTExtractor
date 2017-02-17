@@ -50,8 +50,83 @@ namespace RCTExtractor
 
             Directory.CreateDirectory(extracted);
 
+            Console.WriteLine("Exporting graphics...");
+            ExtractGraphics();
+            Console.WriteLine("Exporting music...");
             ExtractMusic();
+            Console.WriteLine("Exporting sounds...");
             ExtractSounds();
+        }
+
+        private static void ExtractGraphics()
+        {
+            var graphicsDir = Path.Combine(extracted, "graphics");
+            Directory.CreateDirectory(graphicsDir);
+
+            using (var fsi = File.OpenRead(Path.Combine(rctPath, "Data", "csg1i.dat")))
+            using (var bri = new BinaryReader(fsi))
+            using (var fs = File.OpenRead(Path.Combine(rctPath, "Data", "csg1.dat")))
+            using (var br = new BinaryReader(fs))
+            {
+                while(fsi.Position < fsi.Length)
+                {
+                    var startAddress = bri.ReadUInt32();
+                    var width = bri.ReadInt16();
+                    var height = bri.ReadInt16();
+                    var offsetX = bri.ReadInt16();
+                    var offsetY = bri.ReadInt16();
+                    var flags = bri.ReadInt16();
+                    var padding = bri.ReadInt16();
+
+                    Console.Write("{0} ({1}x{2}) ", startAddress, width, height);
+
+                    byte[] data;
+
+                    fs.Position = startAddress;
+                    switch(flags & 0x0f)
+                    {
+                        case 1: //direct bitmap
+                            Console.Write("Direct Bitmap");
+                            data = br.ReadBytes(width * height);
+                            break;
+                        case 5: //compacted bitmap
+                            Console.Write("Compacted Bitmap");
+                            data = new byte[width * height];
+                            for(var y = 0; y < height; y++)
+                            {
+                                var isLast = false;
+                                fs.Position = startAddress + (2 * y);
+                                var startOffset = br.ReadUInt16();
+                                fs.Position = startAddress + startOffset;
+
+                                do
+                                {
+                                    var size = br.ReadByte();
+                                    var offset = br.ReadByte();
+
+                                    isLast = (size & 0x80) == 0x80;
+                                    var scanSize = (byte)(size & 0x7F);
+
+                                    if (scanSize > width)
+                                        throw new Exception("Line overflow");
+
+                                    var buf = br.ReadBytes(scanSize);
+                                    Array.Copy(buf, 0, data, y * width + offset, 0);
+                                }
+                                while (!isLast);
+                            }
+                            break;
+                        case 8: //palette
+                            Console.Write("Palette");
+                            //TODO
+                            continue;
+                        default:
+                            throw new Exception("Unknown flags (" + flags + ")");
+                    }
+
+                    Console.WriteLine();
+                }
+            }
         }
 
         private static void ExtractMusic()
