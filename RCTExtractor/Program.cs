@@ -1,11 +1,34 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace RCTExtractor
 {
     class Program
     {
+        private const string rctPath = @"D:\SteamLibrary\steamapps\common\RollerCoaster Tycoon Deluxe";
+        private const string extracted = "extracted";
+
+        //music
+        private static readonly Dictionary<string, string> songNames = new Dictionary<string, string> {
+            { "CSS2", "people" },
+            { "Css3", "autodrom" },
+            { "Css4", "carousel0" },
+            { "Css5", "carousel1" },
+            { "Css6", "carousel2" },
+            { "Css7", "carousel3" },
+            { "Css8", "carousel4" },
+            { "Css9", "carousel5" },
+            { "Css11", "carousel6" },
+            { "Css13", "carousel7" },
+            { "Css14", "carousel8" },
+            { "Css15", "carousel9" },
+            { "css17", "intro" },
+            //TODO: many more
+        };
+
+        //sounds
         private static readonly byte[] riff = new byte[] { (byte)'R', (byte)'I', (byte)'F', (byte)'F' };
         private static readonly byte[] wave = new byte[] { (byte)'W', (byte)'A', (byte)'V', (byte)'E' };
         private static readonly byte[] fmt = new byte[] { (byte)'f', (byte)'m', (byte)'t', (byte)' ' };
@@ -22,12 +45,51 @@ namespace RCTExtractor
 
         static void Main(string[] args)
         {
-            if (Directory.Exists("sounds"))
-                Directory.Delete("sounds", true);
+            if (Directory.Exists(extracted))
+                Directory.Delete(extracted, true);
 
-            Directory.CreateDirectory("sounds");
+            Directory.CreateDirectory(extracted);
 
-            using (var fs = File.OpenRead(@"D:\SteamLibrary\steamapps\common\RollerCoaster Tycoon Deluxe\Data\Css1.dat"))
+            ExtractMusic();
+            ExtractSounds();
+        }
+
+        private static void ExtractMusic()
+        {
+            var musicDir = Path.Combine(extracted, "music");
+            Directory.CreateDirectory(musicDir);
+
+            foreach (var file in Directory.GetFiles(Path.Combine(rctPath, "Data"), "*.dat"))
+            {
+                bool validMusic;
+                using (var fs = File.OpenRead(file))
+                {
+                    if (fs.Length <= 4)
+                        continue;
+
+                    byte[] buf = new byte[riff.Length];
+                    var count = fs.Read(buf, 0, riff.Length);
+                    if (count != riff.Length)
+                        throw new Exception("did not read enough!");
+
+                    validMusic = riff.SequenceEqual(buf);
+                }
+
+                if (validMusic)
+                {
+                    var baseName = Path.GetFileNameWithoutExtension(file);
+                        File.Copy(file, Path.Combine(musicDir, (songNames.ContainsKey(baseName) ? songNames[baseName] : baseName) + ".wav"));
+                }
+                    
+            }
+        }
+
+        private static void ExtractSounds()
+        {
+            var soundsPath = Path.Combine(extracted, "sounds");
+            Directory.CreateDirectory(soundsPath);
+
+            using (var fs = File.OpenRead(Path.Combine(rctPath, "Data", "Css1.dat")))
             using (var br = new BinaryReader(fs))
             {
                 var positions = new uint[br.ReadUInt32()];
@@ -41,7 +103,7 @@ namespace RCTExtractor
 
                     var size = br.ReadUInt32() - formatSize;
 
-                    using (var sfs = File.OpenWrite(Path.Combine("sounds", names[i] + ".wav")))
+                    using (var sfs = File.OpenWrite(Path.Combine(soundsPath, names[i] + ".wav")))
                     using (var bw = new BinaryWriter(sfs))
                     {
                         bw.Write(riff);
