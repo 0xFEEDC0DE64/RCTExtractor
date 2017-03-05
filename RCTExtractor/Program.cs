@@ -7,7 +7,7 @@ namespace RCTExtractor
 {
     class Program
     {
-        private const string rctPath = @"D:\SteamLibrary\steamapps\common\RollerCoaster Tycoon Deluxe";
+		private const string rctPath = @"/home/danbru1211/.wine/drive_c/Program Files (x86)/Steam/steamapps/common/RollerCoaster Tycoon Deluxe";
         private const string extracted = "extracted";
 
         //music
@@ -65,7 +65,7 @@ namespace RCTExtractor
 
             using (var fsi = File.OpenRead(Path.Combine(rctPath, "Data", "csg1i.dat")))
             using (var bri = new BinaryReader(fsi))
-            using (var fs = File.OpenRead(Path.Combine(rctPath, "Data", "csg1.dat")))
+			using (var fs = File.OpenRead(Path.Combine(rctPath, "Data", "CSG1.DAT")))
             using (var br = new BinaryReader(fs))
             {
                 while(fsi.Position < fsi.Length)
